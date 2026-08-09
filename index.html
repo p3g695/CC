@@ -32,7 +32,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 100;
+      z-index: 1000;
       transition: opacity 0.4s ease, visibility 0.4s;
     }
 
@@ -93,39 +93,55 @@
       background-color: #4b5563;
     }
 
-    /* Workspace Layout */
+    /* Workspace Main Layout */
     #workspace {
       display: flex;
+      flex-direction: column;
       width: 100vw;
       height: 100vh;
     }
 
+    #main-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
     /* Left Toolbar */
     #toolbar {
-      width: 60px;
+      width: 65px;
       background-color: #262626;
       border-right: 1px solid #333;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding-top: 15px;
-      gap: 15px;
+      gap: 12px;
+      z-index: 10;
     }
 
     .tool-icon {
-      width: 40px;
-      height: 40px;
+      width: 45px;
+      height: 45px;
       background-color: #333;
       border-radius: 6px;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
+      user-select: none;
+      transition: background 0.2s;
     }
 
     .tool-icon:hover {
+      background-color: #383838;
+    }
+
+    .tool-icon.active {
       background-color: #2563eb;
+      color: #fff;
     }
 
     /* Center 3D Viewport */
@@ -152,7 +168,7 @@
       pointer-events: none;
     }
 
-    /* Right Inspector / Outliner Panel */
+    /* Right Inspector Panel */
     #inspector {
       width: 280px;
       background-color: #222222;
@@ -160,14 +176,17 @@
       display: flex;
       flex-direction: column;
       padding: 15px;
+      z-index: 10;
     }
 
     #inspector h2 {
-      font-size: 1.1rem;
-      margin-bottom: 12px;
+      font-size: 1rem;
+      margin-bottom: 10px;
       color: #e5e7eb;
       border-bottom: 1px solid #444;
       padding-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .outliner-list {
@@ -183,7 +202,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       cursor: pointer;
       border: 1px solid transparent;
     }
@@ -194,7 +213,7 @@
     }
 
     .type-badge {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       background-color: #4b5563;
       padding: 2px 6px;
       border-radius: 3px;
@@ -219,184 +238,22 @@
       color: #fff;
       font-family: monospace;
     }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-</head>
-<body>
 
-  <div id="welcome-screen">
-    <h1>CC ANIMATION STUDIO</h1>
-    <p>Welcome to CC! Create 3D animations, position scenes, and inspect objects directly in your browser.</p>
-    <div class="btn-container">
-      <button class="btn btn-primary" onclick="launchApp()">Launch Workspace</button>
-      <button class="btn btn-secondary" onclick="triggerDownload()">Download Desktop App</button>
-    </div>
-  </div>
-
-  <div id="workspace">
-    
-    <div id="toolbar">
-      <div class="tool-icon" title="Select Tool">Move</div>
-      <div class="tool-icon" title="Rotate Tool">Rotate</div>
-      <div class="tool-icon" title="Scale Tool">Scale</div>
-    </div>
-
-    <div id="viewport-container">
-      <div id="viewport-overlay-info">Active Camera: PerspectiveCamera</div>
-    </div>
-
-    <div id="inspector">
-      <h2>Scene Hierarchy</h2>
-      <ul class="outliner-list" id="outliner">
-        </ul>
-
-      <h2>Object Properties</h2>
-      <div class="property-box" id="properties-panel">
-        <div class="property-row"><span>Name:</span><span class="property-value" id="prop-name">None</span></div>
-        <div class="property-row"><span>Position X:</span><span class="property-value" id="prop-px">0.00</span></div>
-        <div class="property-row"><span>Position Y:</span><span class="property-value" id="prop-py">0.00</span></div>
-        <div class="property-row"><span>Position Z:</span><span class="property-value" id="prop-pz">0.00</span></div>
-      </div>
-    </div>
-
-  </div>
-
-  <script>
-    // --- APP NAVIGATION ---
-    function launchApp() {
-      document.getElementById('welcome-screen').classList.add('hidden');
+    /* Bottom Timeline Panel */
+    #timeline-panel {
+      height: 150px;
+      background-color: #1e1e1e;
+      border-top: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      transition: height 0.3s ease;
     }
 
-    function triggerDownload() {
-      alert("Downloading the CC Desktop Software package...");
+    #timeline-panel.collapsed {
+      height: 0px;
+      overflow: hidden;
+      border-top: none;
     }
 
-    // --- THREE.JS 3D CANVAS SETUP ---
-    let scene, camera, renderer, cube;
-    const sceneObjects = [];
-
-    function init3D() {
-      const container = document.getElementById('viewport-container');
-
-      // 1. Create Scene
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1e1e1e);
-
-      // 2. Add Grid Helper
-      const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
-      scene.add(gridHelper);
-
-      // 3. Create Perspective Camera
-      camera = new THREE.PerspectiveCamera(
-        60,
-        container.clientWidth / container.clientHeight,
-        0.1,
-        1000
-      );
-      camera.position.set(3, 3, 5);
-      camera.lookAt(0, 0, 0);
-
-      // 4. Create Lighting
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-      scene.add(ambientLight);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(5, 10, 7);
-      scene.add(dirLight);
-
-      // 5. Create 3D Mesh (Cube in the Center)
-      const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x3b82f6,
-        roughness: 0.4,
-        metalness: 0.2
-      });
-      cube = new THREE.Mesh(geometry, material);
-      cube.name = "Cube (Center)";
-      scene.add(cube);
-
-      // Add camera wireframe representation for inspector listing
-      camera.name = "Main Camera";
-
-      // Register listable objects for the inspector
-      sceneObjects.push(
-        { name: camera.name, type: "Camera", obj: camera },
-        { name: cube.name, type: "Mesh", obj: cube },
-        { name: "Directional Light", type: "Light", obj: dirLight }
-      );
-
-      // 6. WebGL Renderer
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      container.appendChild(renderer.domElement);
-
-      // Update right panel outliner UI
-      renderInspectorList();
-
-      // Window Resize Listener
-      window.addEventListener('resize', onWindowResize);
-
-      // Render Loop
-      animate();
-    }
-
-    // --- ANIMATION LOOP ---
-    function animate() {
-      requestAnimationFrame(animate);
-
-      // Rotate the central cube continuously
-      if (cube) {
-        cube.rotation.x += 0.008;
-        cube.rotation.y += 0.01;
-      }
-
-      renderer.render(scene, camera);
-      updateSelectedProperties();
-    }
-
-    function onWindowResize() {
-      const container = document.getElementById('viewport-container');
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    }
-
-    // --- RIGHT PANEL INSPECTOR LOGIC ---
-    let selectedIndex = 1; // Default to Cube
-
-    function renderInspectorList() {
-      const outlinerEl = document.getElementById('outliner');
-      outlinerEl.innerHTML = '';
-
-      sceneObjects.forEach((item, index) => {
-        const li = document.createElement('li');
-        li.className = `outliner-item ${index === selectedIndex ? 'selected' : ''}`;
-        li.onclick = () => {
-          selectedIndex = index;
-          renderInspectorList();
-        };
-
-        li.innerHTML = `
-          <span>${item.name}</span>
-          <span class="type-badge">${item.type}</span>
-        `;
-        outlinerEl.appendChild(li);
-      });
-    }
-
-    function updateSelectedProperties() {
-      const activeItem = sceneObjects[selectedIndex];
-      if (!activeItem) return;
-
-      document.getElementById('prop-name').innerText = activeItem.name;
-      document.getElementById('prop-px').innerText = activeItem.obj.position.x.toFixed(2);
-      document.getElementById('prop-py').innerText = activeItem.obj.position.y.toFixed(2);
-      document.getElementById('prop-pz').innerText = activeItem.obj.position.z.toFixed(2);
-    }
-
-    // Initialize application on page load
-    window.onload = init3D;
-  </script>
-</body>
-</html>
+    #timeline
